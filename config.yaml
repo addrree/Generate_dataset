@@ -1,0 +1,18 @@
+paths:
+  raw_speech:   "data/Russian ASR Common Voice Corpus 21.0/0"
+  raw_speech2:  "data/Russian ASR Sova AI RuDevices/0"
+  # raw_speech3:  "data/audiosets/asr_public_phone_calls_1/0"
+
+  raw_music:    "data/musan/music"
+  raw_noise:    "data/musan/noise"
+
+  # новые папки
+  prepared_speech: "data_prepared/speech"
+  prepared_music:  "data_prepared/music"
+  prepared_noise:  "data_prepared/noise"
+
+  scenarios:    "scenarios"
+  output:       "dataset"
+
+ffmpeg: "D:/datasetgen/ffmpeg/bin/ffmpeg.exe"
+

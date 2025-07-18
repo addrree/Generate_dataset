@@ -1,0 +1,9 @@
+# Сценарий: обычный диалог (две реплики без музыки)
+scenario: normal_convo
+sequence:
+  - type: speech
+    duration: 6
+
+  - type: speech
+    duration: 5
+    gain_db: 1  

@@ -1,0 +1,14 @@
+# scenarios/robot_first.yaml
+scenario: robot_first
+sequence:
+  - type: music
+    duration: 3
+    gain_db: 0
+
+  - type: speech       
+    duration: 4
+    gain_db: -3
+
+  - type: music
+    duration: 3
+    gain_db: 0

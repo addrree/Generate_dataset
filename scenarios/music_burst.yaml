@@ -1,0 +1,16 @@
+5. scenarios/music_burst.yaml
+yaml
+Копировать
+Редактировать
+# Сценарий: «музыкальный врыв» (speech → короткая music → speech)
+scenario: music_burst
+sequence:
+  - type: speech
+    duration: 4
+
+  - type: music
+    duration: 2
+    gain_db: -5           # сделать музыкальный врыв тише
+
+  - type: speech
+    duration: 4

@@ -1,0 +1,6 @@
+# Сценарий: только музыка без речи
+scenario: music_only
+sequence:
+  - type: music
+    duration: 8
+    gain_db: -1   
