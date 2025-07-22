@@ -1,10 +1,10 @@
-# Сценарий: «удержание» (speech → плавный переход → music)
-scenario: on_hold
-sequence:
-  - type: speech
-    duration: 5
+scenario: on_hold              # Сценарий «удержание на линии»
 
-  - type: fade_to_music   # тип: fade-out речи, fade-in музыки
-    duration: 4           # общая длительность перехода
-    fade_ms: 800          # (опционально) длительность фейда в мс
-    duck_db: 12           # (опционально) уровень музыки под речью
+sequence:                       # Список шагов
+  - type: speech                # 1) Чистая речь
+    duration: [4.0, 6.0]        #    от 4 до 6 секунд
+
+  - type: fade_to_music         # 2) Плавный переход: fade-out → речь, fade-in → музыка
+    duration: [3.0, 5.0]        #    общая длительность перехода (3–5 сек)
+    fade_ms: [500, 1000]        #    длительность fade (0.5–1.0 сек)
+    duck_db: [9, 13]            #    музыка под речью на 9–13 дБ ниже

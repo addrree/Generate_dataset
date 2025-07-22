@@ -5,12 +5,10 @@ import os
 import random
 import argparse
 import yaml
-import json
 from pydub import AudioSegment
 
-# Конфигурация и утилиты вынесены в отдельные модули:
 from config import load_config
-from utils  import (
+from utils import (
     ensure_dir,
     load_random_clip,
     duck_overlay,
@@ -18,7 +16,7 @@ from utils  import (
     overlay_noise,
 )
 
-# Загружаем все пути из config.yaml
+# Загрузка путей из config.yaml
 cfg = load_config()
 PREP_SPEECH_DIR = cfg["paths"]["prepared_speech"]
 PREP_MUSIC_DIR  = cfg["paths"]["prepared_music"]
@@ -27,57 +25,63 @@ SCENARIOS_DIR   = cfg["paths"]["scenarios"]
 OUTPUT_DIR      = cfg["paths"]["output"]
 
 def load_scenarios(dir_path):
-    """Считывает все .yaml/.yml-файлы сценариев из папки."""
+    """Читает все YAML-сценарии из папки."""
     scenarios = []
     for fn in os.listdir(dir_path):
         if fn.lower().endswith((".yaml", ".yml")):
-            with open(os.path.join(dir_path, fn), encoding="utf-8") as f:
+            path = os.path.join(dir_path, fn)
+            with open(path, encoding="utf-8") as f:
                 scenarios.append(yaml.safe_load(f))
     return scenarios
 
+def parse_val(raw, default):
+    """
+    Если raw — список [min, max], возвращает random.uniform(min, max).
+    Если raw задан как число, возвращает float(raw).
+    Если raw is None, возвращает default.
+    """
+    if raw is None:
+        return default
+    if isinstance(raw, (list, tuple)) and len(raw) == 2:
+        return random.uniform(raw[0], raw[1])
+    return float(raw)
+
 def make_example(scenario, noise_prob):
-    """
-    Собирает один пример:
-      – склеивает сегменты по сценарию,
-      – опционально накладывает фоновый шум,
-      – возвращает готовый AudioSegment и аннотацию.
-    """
     out = AudioSegment.silent(0)
     timeline = []
     t0 = 0.0
 
     for step in scenario["sequence"]:
         tp      = step["type"]
-        dur     = step["duration"]
-        gain_db = step.get("gain_db", 0.0)
+        dur     = parse_val(step.get("duration"), 0.0)
+        gain_db = parse_val(step.get("gain_db"), 0.0)
 
         if tp == "speech":
             clip = load_random_clip(PREP_SPEECH_DIR, dur) + gain_db
-            segs = [("speech", t0, t0+dur)]
+            segs = [("speech", t0, t0 + dur)]
 
         elif tp == "background_music":
-            duck_db = step.get("duck_db", random.uniform(7,18))
+            duck_db = parse_val(step.get("duck_db"), random.uniform(7,18))
             sp = load_random_clip(PREP_SPEECH_DIR, dur) + gain_db
             mu = load_random_clip(PREP_MUSIC_DIR,  dur)
             clip = duck_overlay(sp, mu, duck_db)
-            segs = [("speech", t0, t0+dur),
-                    ("music",  t0, t0+dur)]
+            segs = [("speech", t0, t0 + dur), ("music", t0, t0 + dur)]
 
         elif tp == "music":
             clip = load_random_clip(PREP_MUSIC_DIR, dur) + gain_db
-            segs = [("music", t0, t0+dur)]
+            segs = [("music", t0, t0 + dur)]
 
         elif tp == "fade_to_music":
-            fade_ms = int(step.get("fade_ms", 500))
+            fade_ms = int(parse_val(step.get("fade_ms"), 500))
+            duck_db = parse_val(step.get("duck_db"), random.uniform(7,18))
             sp = load_random_clip(PREP_SPEECH_DIR, dur) + gain_db
             mu = load_random_clip(PREP_MUSIC_DIR,  dur)
             clip = fade_transition(sp, mu, fade_ms)
-            segs = [("speech", t0, t0+dur),
-                    ("music",  t0, t0+dur)]
+            segs = [("speech", t0, t0 + dur), ("music", t0, t0 + dur)]
 
         elif tp == "noise":
             clip = load_random_clip(PREP_NOISE_DIR, dur)
-            segs = [("noise", t0, t0+dur)]
+            segs = [("noise", t0, t0 + dur)]
 
         else:
             continue
@@ -91,7 +95,7 @@ def make_example(scenario, noise_prob):
             })
         t0 += dur
 
-    # фоновой шум
+    # опциональный фоновый шум
     if random.random() < noise_prob:
         out = overlay_noise(out, PREP_NOISE_DIR)
 
@@ -106,22 +110,36 @@ def main(n, noise_prob):
         audio, ann = make_example(sc, noise_prob)
         base = f"example_{i:05}"
         wav_path  = os.path.join(OUTPUT_DIR, base + ".wav")
-        json_path = os.path.join(OUTPUT_DIR, base + ".json")
+        yaml_path = os.path.join(OUTPUT_DIR, base + ".yaml")
 
+        # Сохраняем аудио
         audio.export(wav_path, format="wav")
-        with open(json_path, "w", encoding="utf-8") as f:
-            json.dump({"segments": ann}, f, ensure_ascii=False, indent=2)
+
+        # Преобразуем аннотации в список словарей и сохраняем в YAML
+        segments = [
+            {"label": s["label"], "start": s["start"], "end": s["end"]}
+            for s in ann
+        ]
+        with open(yaml_path, "w", encoding="utf-8") as f:
+            yaml.dump({"segments": segments},
+                      f,
+                      sort_keys=False,
+                      allow_unicode=True)
 
         if i % 100 == 0:
             print(f"{i} examples generated")
 
 if __name__ == "__main__":
-    p = argparse.ArgumentParser(
-        description="Generate synthetic audio dataset"
+    parser = argparse.ArgumentParser(
+        description="Generate synthetic audio dataset with YAML annotations"
     )
-    p.add_argument("--n",          type=int,   default=10000,
-                   help="Number of examples to generate")
-    p.add_argument("--noise_prob", type=float, default=0.3,
-                   help="Probability to overlay background noise")
-    args = p.parse_args()
+    parser.add_argument(
+        "--n", type=int, default=10000,
+        help="Number of examples to generate"
+    )
+    parser.add_argument(
+        "--noise_prob", type=float, default=0.3,
+        help="Probability to overlay background noise"
+    )
+    args = parser.parse_args()
     main(args.n, args.noise_prob)

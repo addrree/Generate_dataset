@@ -1,6 +1,6 @@
-# Сценарий: только музыка без речи
-scenario: music_only
+scenario: music_only           # Сценарий: только музыка, без речи
+
 sequence:
-  - type: music
-    duration: 8
-    gain_db: -1   
+  - type: music                # Отрезок чисто музыки
+    duration: [6.0, 10.0]      #    6–10 сек
+    gain_db: [ -3, 0 ]         #    громкость в диапазоне –3…0 дБ

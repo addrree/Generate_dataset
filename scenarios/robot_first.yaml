@@ -1,14 +1,14 @@
-# scenarios/robot_first.yaml
-scenario: robot_first
+scenario: robot_first           # Сценарий автоответчика 
+
 sequence:
-  - type: music
-    duration: 3
-    gain_db: 0
+  - type: music                 # 1) Музыкальная заставка
+    duration: [2.0, 4.0]        #    2–4 сек
+    gain_db: 0                  #    громкость без изменений
 
-  - type: speech       
-    duration: 4
-    gain_db: -3
+  - type: speech                # 2) речь
+    duration: [3.0, 5.0]        #    3–5 сек
+    gain_db: -3                 #    понизить громкость на 3 дБ
 
-  - type: music
-    duration: 3
-    gain_db: 0
+  - type: music                 # 3) Музыка в конце
+    duration: [2.0, 4.0]        #    2–4 сек
+    gain_db: 0                  #    без изменения уровня
