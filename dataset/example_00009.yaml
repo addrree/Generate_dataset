@@ -1,0 +1,11 @@
+segments:
+  - label: music
+    start: 0.000
+    end:   3.000
+  - label: speech
+    start: 3.000
+    end:   7.000
+  - label: music
+    start: 7.000
+    end:   10.000
+
