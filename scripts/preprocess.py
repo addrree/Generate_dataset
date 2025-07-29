@@ -1,11 +1,15 @@
 import os
 import subprocess
+
+from tqdm import tqdm
+
 from config import load_config
 from utils import ensure_dir
 
 ERROR_LOG = "preprocess_errors.log"
 
-def process_one(ffmpeg_path: str, inp_path: str, out_path: str):
+
+def process_one(inp_path: str, out_path: str):
     """
     Конвертация одним FFmpeg-вызовом:
       - mono 16 kHz PCM
@@ -20,7 +24,7 @@ def process_one(ffmpeg_path: str, inp_path: str, out_path: str):
         "areverse"
     )
     cmd = [
-        ffmpeg_path,
+        "ffmpeg",
         "-hide_banner", "-loglevel", "error",
         "-y", "-i", inp_path,
         "-ac", "1", "-ar", "16000", "-sample_fmt", "s16",
@@ -35,14 +39,12 @@ def process_one(ffmpeg_path: str, inp_path: str, out_path: str):
             logf.write(f"{inp_path}\n")
         print(f"[ERROR] failed to process: {inp_path}")
 
+
 def main():
-    cfg    = load_config()
-    ffmpeg = cfg["ffmpeg"]
+    cfg = load_config()
+    #ffmpeg = cfg["ffmpeg"]
 
     mapping = [
-        (cfg["paths"]["raw_speech"],   cfg["paths"]["prepared_speech"]),
-        (cfg["paths"]["raw_speech2"],  cfg["paths"]["prepared_speech"]),
-        (cfg["paths"]["raw_speech3"],  cfg["paths"]["prepared_speech"]),
         (cfg["paths"]["raw_music"],    cfg["paths"]["prepared_music"]),
         (cfg["paths"]["raw_noise"],    cfg["paths"]["prepared_noise"]),
     ]
@@ -55,18 +57,19 @@ def main():
     # Обходим все raw → конвертим в prepared
     for src, dst in mapping:
         for root, _, files in os.walk(src):
-            for fn in files:
+            for fn in tqdm(files):
                 if not fn.lower().endswith(exts):
                     continue
-                inp  = os.path.join(root, fn)
+                inp = os.path.join(root, fn)
                 base = os.path.splitext(fn)[0]
-                out  = os.path.join(dst, base + ".wav")
+                out = os.path.join(dst, base + ".wav")
                 if os.path.exists(out):
                     continue
-                print(f"Processing {inp} → {out}")
-                process_one(ffmpeg, inp, out)
+                #print(f"Processing {inp} → {out}")
+                process_one(inp, out)
 
     print("Done! Ошибки, если были, в", ERROR_LOG)
+
 
 if __name__ == "__main__":
     main()

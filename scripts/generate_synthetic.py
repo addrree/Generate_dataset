@@ -1,14 +1,12 @@
-#!/usr/bin/env python3
-# scripts/generate_synthetic.py
-
 import os
 import random
 import argparse
 import yaml
 from pydub import AudioSegment
+from tqdm import tqdm
 
-from config import load_config
-from utils import (
+from .config import load_config
+from .utils import (
     ensure_dir,
     load_random_clip,
     duck_overlay,
@@ -19,10 +17,11 @@ from utils import (
 # Загрузка путей из config.yaml
 cfg = load_config()
 PREP_SPEECH_DIR = cfg["paths"]["prepared_speech"]
-PREP_MUSIC_DIR  = cfg["paths"]["prepared_music"]
-PREP_NOISE_DIR  = cfg["paths"]["prepared_noise"]
-SCENARIOS_DIR   = cfg["paths"]["scenarios"]
-OUTPUT_DIR      = cfg["paths"]["output"]
+PREP_MUSIC_DIR = cfg["paths"]["prepared_music"]
+PREP_NOISE_DIR = cfg["paths"]["prepared_noise"]
+SCENARIOS_DIR = cfg["paths"]["scenarios"]
+OUTPUT_DIR = cfg["paths"]["output"]
+
 
 def load_scenarios(dir_path):
     """Читает все YAML-сценарии из папки."""
@@ -33,6 +32,7 @@ def load_scenarios(dir_path):
             with open(path, encoding="utf-8") as f:
                 scenarios.append(yaml.safe_load(f))
     return scenarios
+
 
 def parse_val(raw, default):
     """
@@ -46,14 +46,15 @@ def parse_val(raw, default):
         return random.uniform(raw[0], raw[1])
     return float(raw)
 
+
 def make_example(scenario, noise_prob):
     out = AudioSegment.silent(0)
     timeline = []
     t0 = 0.0
 
     for step in scenario["sequence"]:
-        tp      = step["type"]
-        dur     = parse_val(step.get("duration"), 0.0)
+        tp = step["type"]
+        dur = parse_val(step.get("duration"), 0.0)
         gain_db = parse_val(step.get("gain_db"), 0.0)
 
         if tp == "speech":
@@ -101,15 +102,16 @@ def make_example(scenario, noise_prob):
 
     return out, timeline
 
-def main(n, noise_prob):
+
+def generate_synthetic(n, noise_prob):
     ensure_dir(OUTPUT_DIR)
     scenarios = load_scenarios(SCENARIOS_DIR)
 
-    for i in range(n):
+    for i in tqdm(range(n), desc="Generating dataset"):
         sc = random.choice(scenarios)
         audio, ann = make_example(sc, noise_prob)
         base = f"example_{i:05}"
-        wav_path  = os.path.join(OUTPUT_DIR, base + ".wav")
+        wav_path = os.path.join(OUTPUT_DIR, base + ".wav")
         yaml_path = os.path.join(OUTPUT_DIR, base + ".yaml")
 
         # Сохраняем аудио
@@ -126,20 +128,4 @@ def main(n, noise_prob):
                       sort_keys=False,
                       allow_unicode=True)
 
-        if i % 100 == 0:
-            print(f"{i} examples generated")
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Generate synthetic audio dataset with YAML annotations"
-    )
-    parser.add_argument(
-        "--n", type=int, default=10000,
-        help="Number of examples to generate"
-    )
-    parser.add_argument(
-        "--noise_prob", type=float, default=0.3,
-        help="Probability to overlay background noise"
-    )
-    args = parser.parse_args()
-    main(args.n, args.noise_prob)
+    return OUTPUT_DIR

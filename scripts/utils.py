@@ -3,16 +3,17 @@
 import os
 import random
 from pydub import AudioSegment
+from functools import lru_cache
+from pydub.exceptions import CouldntDecodeError
+
 
 def ensure_dir(path):
     """Создаёт папку, если её ещё нет."""
     os.makedirs(path, exist_ok=True)
 
-def load_random_clip(folder: str, duration_s: float) -> AudioSegment:
-    """
-    Берёт случайный непустой .wav из папки и возвращает AudioSegment
-    ровно duration_s секунд (лупит или обрезает).
-    """
+
+@lru_cache(maxsize=10)  # Кеширует последние 10 папок
+def get_wav_candidates(folder: str) -> list:
     candidates = []
     for root, _, files in os.walk(folder):
         for fn in files:
@@ -21,17 +22,27 @@ def load_random_clip(folder: str, duration_s: float) -> AudioSegment:
                 if os.path.getsize(full) > 1024:
                     candidates.append(full)
     if not candidates:
-        raise FileNotFoundError(f"No WAV files in {folder}")
+        raise FileNotFoundError(f"No valid WAV files in {folder}")
+    return candidates
 
-    # Находим первый непустой файл
-    while candidates:
+
+def load_random_clip(folder: str, duration_s: float) -> AudioSegment:
+    """
+    Берёт случайный непустой .wav из папки и возвращает AudioSegment
+    ровно duration_s секунд (лупит или обрезает).
+    """
+    candidates = get_wav_candidates(folder)
+    for _ in range(len(candidates)):  # Не больше попыток, чем файлов
         choice = random.choice(candidates)
-        clip = AudioSegment.from_file(choice)
-        if len(clip) > 0:
-            break
+        try:
+            clip = AudioSegment.from_file(choice)
+            if len(clip) > 0:
+                break
+        except (CouldntDecodeError, Exception) as e:
+            print(f"Skipping broken file {choice}: {e}")
         candidates.remove(choice)
-    if len(clip) == 0:
-        raise ValueError(f"All WAVs in {folder} are empty")
+    else:
+        raise ValueError(f"No playable WAVs in {folder}")
 
     # Лупим или обрезаем до нужной длины
     req_ms = int(duration_s * 1000)
@@ -40,13 +51,16 @@ def load_random_clip(folder: str, duration_s: float) -> AudioSegment:
         clip = clip * times
     return clip[:req_ms]
 
+
 def duck_overlay(speech: AudioSegment, music: AudioSegment, duck_db: float) -> AudioSegment:
     """Накладывает музыку под речь, понижая её уровень на duck_db дБ."""
     return speech.overlay(music - duck_db)
 
+
 def fade_transition(a1: AudioSegment, a2: AudioSegment, fade_ms: int) -> AudioSegment:
     """Плавный переход: fade-out первой дорожки и fade-in второй."""
     return a1.fade_out(fade_ms) + a2.fade_in(fade_ms)
+
 
 def overlay_noise(audio: AudioSegment, noise_folder: str, reduction_db_range=(15, 30)) -> AudioSegment:
     """
