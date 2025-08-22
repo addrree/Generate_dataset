@@ -74,7 +74,7 @@ def make_example(scenario, noise_prob):
             segs = [("music", t0, t0 + dur)]
 
         elif tp == "fade_music":
-            # как у тебя было:
+           
             sp = load_random_clip(PREP_SPEECH_DIR, dur) + gain_db
             mu = load_random_clip(PREP_MUSIC_DIR,  dur)
             transitioned = fade_transition(sp, mu, crossfade_ms=xfade_ms)
