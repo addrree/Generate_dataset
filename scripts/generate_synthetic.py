@@ -56,7 +56,8 @@ def make_example(scenario, noise_prob):
         tp = step["type"]
         dur = parse_val(step.get("duration"), 0.0)
         gain_db = parse_val(step.get("gain_db"), 0.0)
-
+        xfade_ms = int(step.get("crossfade_ms", 0))
+        
         if tp == "speech":
             clip = load_random_clip(PREP_SPEECH_DIR, dur) + gain_db
             segs = [("speech", t0, t0 + dur)]
@@ -72,13 +73,26 @@ def make_example(scenario, noise_prob):
             clip = load_random_clip(PREP_MUSIC_DIR, dur) + gain_db
             segs = [("music", t0, t0 + dur)]
 
-        elif tp == "fade_to_music":
-            fade_ms = int(parse_val(step.get("fade_ms"), 500))
-            duck_db = parse_val(step.get("duck_db"), random.uniform(7,18))
+        elif tp == "fade_music":
+            # как у тебя было:
             sp = load_random_clip(PREP_SPEECH_DIR, dur) + gain_db
             mu = load_random_clip(PREP_MUSIC_DIR,  dur)
-            clip = fade_transition(sp, mu, fade_ms)
-            segs = [("speech", t0, t0 + dur), ("music", t0, t0 + dur)]
+            transitioned = fade_transition(sp, mu, crossfade_ms=xfade_ms)
+            clip = transitioned
+
+            # ⬇️ фикс разметки: музыка «слышна» позже из‑за двойного фейда
+            music_start = t0 + (2 * xfade_ms) / 1000.0
+            music_end   = t0 + dur + xfade_ms / 1000.0
+
+            if music_start < t0:
+                music_start = t0
+            if music_end < music_start:
+                music_end = music_start
+
+            segs = [
+                ("speech", t0,           t0 + dur + xfade_ms / 1000.0),
+                ("music",  music_start,  music_end),
+            ]
 
         elif tp == "noise":
             clip = load_random_clip(PREP_NOISE_DIR, dur)
