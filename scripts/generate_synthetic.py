@@ -73,26 +73,61 @@ def make_example(scenario, noise_prob):
             clip = load_random_clip(PREP_MUSIC_DIR, dur) + gain_db
             segs = [("music", t0, t0 + dur)]
 
-        elif tp == "fade_music":
-            # как у тебя было:
+        elif tp in ("fade_to_music"):
             sp = load_random_clip(PREP_SPEECH_DIR, dur) + gain_db
             mu = load_random_clip(PREP_MUSIC_DIR,  dur)
-            transitioned = fade_transition(sp, mu, crossfade_ms=xfade_ms)
-            clip = transitioned
 
-            # ⬇️ фикс разметки: музыка «слышна» позже из‑за двойного фейда
-            music_start = t0 + (2 * xfade_ms) / 1000.0
-            music_end   = t0 + dur + xfade_ms / 1000.0
+          
+            clip = fade_transition(sp, mu, xfade_ms)
 
-            if music_start < t0:
-                music_start = t0
-            if music_end < music_start:
-                music_end = music_start
+            # Геометрия кроссфейда
+            sp_ms = len(sp)
+            mu_ms = len(mu)
+            overlap_start_ms = sp_ms - xfade_ms            
+            step_len_ms = sp_ms + mu_ms - xfade_ms
+            step_end = t0 + step_len_ms / 1000.0
+
+            
+            sp_tail = sp[-xfade_ms:].fade_out(xfade_ms)      
+            mu_head = mu[:xfade_ms].fade_in(xfade_ms)        
+
+           
+            def first_crossing_offset_ms(speech_seg, music_seg, win_ms=20, hop_ms=10):
+                n = len(speech_seg)
+                if n <= 0:
+                    return 0
+             
+                win = max(1, min(win_ms, n))
+                hop = max(1, hop_ms)
+                pos = 0
+                while pos + win <= n:
+                    sp_win = speech_seg[pos:pos+win].rms
+                    mu_win = music_seg[pos:pos+win].rms
+                  
+                    if mu_win >= sp_win:
+                        return pos
+                    pos += hop
+                return n  
+
+            offset_ms = first_crossing_offset_ms(sp_tail, mu_head, win_ms=20, hop_ms=10)
+
+           
+            boundary = t0 + (overlap_start_ms + offset_ms) / 1000.0  
+
+            
+            speech_end = min(boundary, step_end)
+            music_start = max(boundary, t0)
 
             segs = [
-                ("speech", t0,           t0 + dur + xfade_ms / 1000.0),
-                ("music",  music_start,  music_end),
+                ("speech", t0,         speech_end),
+                ("music",  music_start, step_end),
             ]
+            out += clip
+            t0 = len(out) / 1000.0
+            for lab, st, en in segs:
+                if en > st:
+                    timeline.append({"label": lab, "start": round(st, 3), "end": round(en, 3)})
+            continue 
 
         elif tp == "noise":
             clip = load_random_clip(PREP_NOISE_DIR, dur)
@@ -108,7 +143,7 @@ def make_example(scenario, noise_prob):
                 "start": round(start, 3),
                 "end":   round(end,   3),
             })
-        t0 += dur
+        t0 = len(out) / 1000.0
 
     # опциональный фоновый шум
     if random.random() < noise_prob:

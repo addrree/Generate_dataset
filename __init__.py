@@ -1,1 +1,0 @@
-from .scripts.generate_synthetic import generate_synthetic
