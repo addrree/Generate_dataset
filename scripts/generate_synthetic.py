@@ -56,7 +56,7 @@ def make_example(scenario, noise_prob):
         tp = step["type"]
         dur = parse_val(step.get("duration"), 0.0)
         gain_db = parse_val(step.get("gain_db"), 0.0)
-        xfade_ms = int(step.get("crossfade_ms", 0))
+        xfade_ms = int(parse_val(step.get("crossfade_ms", step.get("fade_ms", 0)), 0))
         
         if tp == "speech":
             clip = load_random_clip(PREP_SPEECH_DIR, dur) + gain_db
@@ -73,7 +73,7 @@ def make_example(scenario, noise_prob):
             clip = load_random_clip(PREP_MUSIC_DIR, dur) + gain_db
             segs = [("music", t0, t0 + dur)]
 
-        elif tp in ("fade_to_music"):
+        elif tp == "fade_to_music":
             sp = load_random_clip(PREP_SPEECH_DIR, dur) + gain_db
             mu = load_random_clip(PREP_MUSIC_DIR,  dur)
 
