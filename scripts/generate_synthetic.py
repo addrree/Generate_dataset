@@ -143,6 +143,7 @@ def make_example(scenario, noise_prob):
                 "start": round(start, 3),
                 "end":   round(end,   3),
             })
+            
         t0 = len(out) / 1000.0
 
     # опциональный фоновый шум
