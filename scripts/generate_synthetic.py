@@ -77,44 +77,39 @@ def make_example(scenario, noise_prob):
             sp = load_random_clip(PREP_SPEECH_DIR, dur) + gain_db
             mu = load_random_clip(PREP_MUSIC_DIR,  dur)
 
-          
+            
             clip = fade_transition(sp, mu, xfade_ms)
 
             # Геометрия кроссфейда
             sp_ms = len(sp)
             mu_ms = len(mu)
-            overlap_start_ms = sp_ms - xfade_ms            
+            overlap_start_ms = sp_ms - xfade_ms             
             step_len_ms = sp_ms + mu_ms - xfade_ms
             step_end = t0 + step_len_ms / 1000.0
 
-            
-            sp_tail = sp[-xfade_ms:].fade_out(xfade_ms)      
+        
+            sp_tail = sp[-xfade_ms:].fade_out(xfade_ms)     
             mu_head = mu[:xfade_ms].fade_in(xfade_ms)        
 
            
-            def first_crossing_offset_ms(speech_seg, music_seg, win_ms=20, hop_ms=10):
+            def first_crossing_offset_ms(speech_seg, music_seg, win_ms=30, hop_ms=5):
                 n = len(speech_seg)
                 if n <= 0:
                     return 0
-             
                 win = max(1, min(win_ms, n))
                 hop = max(1, hop_ms)
                 pos = 0
                 while pos + win <= n:
                     sp_win = speech_seg[pos:pos+win].rms
                     mu_win = music_seg[pos:pos+win].rms
-                  
                     if mu_win >= sp_win:
-                        return pos
+                        
+                        return pos + win // 2
                     pos += hop
                 return n  
 
             offset_ms = first_crossing_offset_ms(sp_tail, mu_head, win_ms=20, hop_ms=10)
-
-           
-            boundary = t0 + (overlap_start_ms + offset_ms) / 1000.0  
-
-            
+            boundary = t0 + (overlap_start_ms + offset_ms) / 1000.0   
             speech_end = min(boundary, step_end)
             music_start = max(boundary, t0)
 
@@ -128,7 +123,7 @@ def make_example(scenario, noise_prob):
                 if en > st:
                     timeline.append({"label": lab, "start": round(st, 3), "end": round(en, 3)})
             continue 
-
+        
         elif tp == "noise":
             clip = load_random_clip(PREP_NOISE_DIR, dur)
             segs = [("noise", t0, t0 + dur)]
@@ -143,13 +138,34 @@ def make_example(scenario, noise_prob):
                 "start": round(start, 3),
                 "end":   round(end,   3),
             })
-            
         t0 = len(out) / 1000.0
+        
 
     # опциональный фоновый шум
     if random.random() < noise_prob:
         out = overlay_noise(out, PREP_NOISE_DIR)
+    
+    total_len = round(len(out) / 1000.0, 3)
 
+    # clamp и сортировка
+    norm = []
+    for s in timeline:
+        st = max(0.0, round(s["start"], 3))
+        en = min(total_len, round(s["end"],   3))
+        if en > st:
+            norm.append({"label": s["label"], "start": st, "end": en})
+
+    norm.sort(key=lambda x: (x["start"], x["end"], x["label"]))
+
+    # склейка соприкасающихся сегментов одного типа
+    merged = []
+    for s in norm:
+        if merged and merged[-1]["label"] == s["label"] and s["start"] <= merged[-1]["end"] + 1e-3:
+            merged[-1]["end"] = max(merged[-1]["end"], s["end"])
+        else:
+            merged.append(s)
+
+    timeline = merged
     return out, timeline
 
 
