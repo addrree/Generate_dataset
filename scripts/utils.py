@@ -25,7 +25,46 @@ def get_wav_candidates(folder: str) -> list:
         raise FileNotFoundError(f"No valid WAV files in {folder}")
     return candidates
 
+def load_random_music_clip(folder: str, duration_s: float) -> AudioSegment:
+    """
+    Берёт случайный .wav из папки и возвращает кусок ровно duration_s секунд.
+    Если исходник длиннее — нарезает со СЛУЧАЙНОГО места.
+    Если короче — лупит, начиная со СЛУЧАЙНОГО смещения.
+    """
+    candidates = []
+    for root, _, files in os.walk(folder):
+        for fn in files:
+            if fn.lower().endswith(".wav"):
+                full = os.path.join(root, fn)
+                if os.path.getsize(full) > 1024:
+                    candidates.append(full)
+    if not candidates:
+        raise FileNotFoundError(f"No WAV files in {folder}")
 
+    # выбрать непустой файл
+    while candidates:
+        choice = random.choice(candidates)
+        clip = AudioSegment.from_file(choice)
+        if len(clip) > 0:
+            break
+        candidates.remove(choice)
+    if len(clip) == 0:
+        raise ValueError(f"All WAVs in {folder} are empty")
+
+    req_ms = int(duration_s * 1000)
+
+    # длинный файл -> случайный срез
+    if len(clip) >= req_ms:
+        start = random.randint(0, len(clip) - req_ms)
+        return clip[start:start + req_ms]
+
+    # короткий файл -> луп c произвольного смещения
+    # смещение < len(clip), затем доматываем циклически до нужной длины
+    offset = random.randint(0, max(0, len(clip) - 1))
+    out = clip[offset:]
+    while len(out) < req_ms:
+        out += clip
+    return out[:req_ms]
 def load_random_clip(folder: str, duration_s: float) -> AudioSegment:
     """
     Берёт случайный непустой .wav из папки и возвращает AudioSegment

@@ -6,22 +6,22 @@ from pydub import AudioSegment
 from tqdm import tqdm
 
 from .config import load_config
-from .utils import (
+from utils import (
     ensure_dir,
     load_random_clip,
     duck_overlay,
     fade_transition,
     overlay_noise,
+    load_random_music_clip,
 )
 
 # Загрузка путей из config.yaml
 cfg = load_config()
 PREP_SPEECH_DIR = cfg["paths"]["prepared_speech"]
-PREP_MUSIC_DIR = cfg["paths"]["prepared_music"]
-PREP_NOISE_DIR = cfg["paths"]["prepared_noise"]
-SCENARIOS_DIR = cfg["paths"]["scenarios"]
-OUTPUT_DIR = cfg["paths"]["output"]
-
+PREP_MUSIC_DIR  = cfg["paths"]["prepared_music"]
+PREP_NOISE_DIR  = cfg["paths"]["prepared_noise"]
+SCENARIOS_DIR   = cfg["paths"]["scenarios"]
+OUTPUT_DIR      = cfg["paths"]["output"]
 
 def load_scenarios(dir_path):
     """Читает все YAML-сценарии из папки."""
@@ -32,7 +32,6 @@ def load_scenarios(dir_path):
             with open(path, encoding="utf-8") as f:
                 scenarios.append(yaml.safe_load(f))
     return scenarios
-
 
 def parse_val(raw, default):
     """
@@ -46,18 +45,17 @@ def parse_val(raw, default):
         return random.uniform(raw[0], raw[1])
     return float(raw)
 
-
 def make_example(scenario, noise_prob):
     out = AudioSegment.silent(0)
     timeline = []
     t0 = 0.0
 
     for step in scenario["sequence"]:
-        tp = step["type"]
-        dur = parse_val(step.get("duration"), 0.0)
+        tp      = step["type"]
+        dur     = parse_val(step.get("duration"), 0.0)
         gain_db = parse_val(step.get("gain_db"), 0.0)
         xfade_ms = int(parse_val(step.get("crossfade_ms", step.get("fade_ms", 0)), 0))
-        
+
         if tp == "speech":
             clip = load_random_clip(PREP_SPEECH_DIR, dur) + gain_db
             segs = [("speech", t0, t0 + dur)]
@@ -65,7 +63,7 @@ def make_example(scenario, noise_prob):
         elif tp == "background_music":
             duck_db = parse_val(step.get("duck_db"), random.uniform(7,18))
             sp = load_random_clip(PREP_SPEECH_DIR, dur) + gain_db
-            mu = load_random_clip(PREP_MUSIC_DIR,  dur)
+            mu = load_random_music_clip(PREP_MUSIC_DIR,  dur)
             clip = duck_overlay(sp, mu, duck_db)
             segs = [("speech", t0, t0 + dur), ("music", t0, t0 + dur)]
 
@@ -75,46 +73,44 @@ def make_example(scenario, noise_prob):
 
         elif tp == "fade_to_music":
             sp = load_random_clip(PREP_SPEECH_DIR, dur) + gain_db
-            mu = load_random_clip(PREP_MUSIC_DIR,  dur)
-
-            
+            mu = load_random_music_clip(PREP_MUSIC_DIR,  dur)
             clip = fade_transition(sp, mu, xfade_ms)
 
-            # Геометрия кроссфейда
+            step_end = t0 + len(clip) / 1000.0
             sp_ms = len(sp)
-            mu_ms = len(mu)
-            overlap_start_ms = sp_ms - xfade_ms             
-            step_len_ms = sp_ms + mu_ms - xfade_ms
-            step_end = t0 + step_len_ms / 1000.0
+            speech_end = t0 + sp_ms / 1000.0
 
-        
-            sp_tail = sp[-xfade_ms:].fade_out(xfade_ms)     
-            mu_head = mu[:xfade_ms].fade_in(xfade_ms)        
+            head_ms = min(xfade_ms, len(mu))
+            mu_head = mu[:head_ms].fade_in(xfade_ms)
 
-           
-            def first_crossing_offset_ms(speech_seg, music_seg, win_ms=30, hop_ms=5):
-                n = len(speech_seg)
+            def first_audible_offset_ms(seg, win_ms=30, hop_ms=5, frac=0.18):
+                n = len(seg)
                 if n <= 0:
                     return 0
                 win = max(1, min(win_ms, n))
                 hop = max(1, hop_ms)
+                vals, pos = [], 0
+                while pos + win <= n:
+                    vals.append(seg[pos:pos+win].rms)
+                    pos += hop
+                if not vals:
+                    return 0
+                vmax = max(vals) or 1
+                thr = frac * vmax
                 pos = 0
                 while pos + win <= n:
-                    sp_win = speech_seg[pos:pos+win].rms
-                    mu_win = music_seg[pos:pos+win].rms
-                    if mu_win >= sp_win:
-                        
+                    if seg[pos:pos+win].rms >= thr:
                         return pos + win // 2
                     pos += hop
-                return n  
+                return n
 
-            offset_ms = first_crossing_offset_ms(sp_tail, mu_head, win_ms=20, hop_ms=10)
-            boundary = t0 + (overlap_start_ms + offset_ms) / 1000.0   
-            speech_end = min(boundary, step_end)
-            music_start = max(boundary, t0)
+            offset_ms = first_audible_offset_ms(mu_head, win_ms=30, hop_ms=5, frac=0.18)
+
+            music_start = speech_end + offset_ms / 1000.0
+            music_start = min(music_start, step_end)
 
             segs = [
-                ("speech", t0,         speech_end),
+                ("speech", t0,          speech_end),
                 ("music",  music_start, step_end),
             ]
             out += clip
@@ -122,8 +118,8 @@ def make_example(scenario, noise_prob):
             for lab, st, en in segs:
                 if en > st:
                     timeline.append({"label": lab, "start": round(st, 3), "end": round(en, 3)})
-            continue 
-        
+            continue  
+
         elif tp == "noise":
             clip = load_random_clip(PREP_NOISE_DIR, dur)
             segs = [("noise", t0, t0 + dur)]
@@ -139,15 +135,11 @@ def make_example(scenario, noise_prob):
                 "end":   round(end,   3),
             })
         t0 = len(out) / 1000.0
-        
-
-    # опциональный фоновый шум
     if random.random() < noise_prob:
         out = overlay_noise(out, PREP_NOISE_DIR)
-    
+
     total_len = round(len(out) / 1000.0, 3)
 
-    # clamp и сортировка
     norm = []
     for s in timeline:
         st = max(0.0, round(s["start"], 3))
@@ -157,16 +149,45 @@ def make_example(scenario, noise_prob):
 
     norm.sort(key=lambda x: (x["start"], x["end"], x["label"]))
 
-    # склейка соприкасающихся сегментов одного типа
     merged = []
     for s in norm:
         if merged and merged[-1]["label"] == s["label"] and s["start"] <= merged[-1]["end"] + 1e-3:
             merged[-1]["end"] = max(merged[-1]["end"], s["end"])
         else:
             merged.append(s)
-
+    if merged:
+        if merged[-1]["end"] < total_len:
+            merged[-1]["end"] = total_len
     timeline = merged
     return out, timeline
+
+def main(n, noise_prob):
+    ensure_dir(OUTPUT_DIR)
+    scenarios = load_scenarios(SCENARIOS_DIR)
+
+    for i in range(n):
+        sc = random.choice(scenarios)
+        audio, ann = make_example(sc, noise_prob)
+        base = f"example_{i:05}"
+        wav_path  = os.path.join(OUTPUT_DIR, base + ".wav")
+        yaml_path = os.path.join(OUTPUT_DIR, base + ".yaml")
+
+        # Сохраняем аудио
+        audio.export(wav_path, format="wav")
+
+        # Преобразуем аннотации в список словарей и сохраняем в YAML
+        segments = [
+            {"label": s["label"], "start": s["start"], "end": s["end"]}
+            for s in ann
+        ]
+        with open(yaml_path, "w", encoding="utf-8") as f:
+            yaml.dump({"segments": segments},
+                      f,
+                      sort_keys=False,
+                      allow_unicode=True)
+
+        if i % 100 == 0:
+            print(f"{i} examples generated")
 
 
 def generate_synthetic(n, noise_prob):
