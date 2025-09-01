@@ -1,0 +1,3 @@
+scenario: silence
+sequence:
+  - type: silence

@@ -154,6 +154,10 @@ def make_example(scenario, noise_prob,
             clip = load_random_music_clip(PREP_MUSIC_DIR, dur_s) + gain_db
             segs = [("music", t0, t0 + len(clip)/1000.0)]
 
+        elif tp == "silence":
+            clip = AudioSegment.silent(dur_ms)
+            segs = [("silence", t0, t0 + dur_ms/1000.0)]    
+
         elif tp == "background_music":
             duck_db = parse_val(step.get("duck_db"), random.uniform(7, 18))
             sp = load_random_clip(PREP_SPEECH_DIR, dur_s) + gain_db
