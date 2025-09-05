@@ -89,6 +89,39 @@ def load_random_clip(folder: str, duration_s: float) -> AudioSegment:
         times = req_ms // len(clip) + 1
         clip = clip * times
     return clip[:req_ms]
+def load_random_clip_concat(folder: str, duration_s: float) -> AudioSegment:
+    """
+    Набирает сегмент нужной длины, склеивая разные файлы из папки.
+    - Не лупит один и тот же файл.
+    - Не режет случайные срезы: берёт целиком файлы.
+    - Последний файл обрезается, чтобы ровно уложиться в duration_s.
+    """
+    candidates = []
+    for root, _, files in os.walk(folder):
+        for fn in files:
+            if fn.lower().endswith(".wav"):
+                full = os.path.join(root, fn)
+                if os.path.getsize(full) > 1024:
+                    candidates.append(full)
+    if not candidates:
+        raise FileNotFoundError(f"No WAV files in {folder}")
+
+    target_ms = int(duration_s * 1000)
+    out = AudioSegment.silent(0)
+
+    # перемешаем порядок
+    random.shuffle(candidates)
+    idx = 0
+
+    while len(out) < target_ms:
+        path = candidates[idx % len(candidates)]
+        idx += 1
+        seg = AudioSegment.from_file(path)
+        if len(out) + len(seg) > target_ms:
+            seg = seg[: target_ms - len(out)]
+        out += seg
+
+    return out
 
 
 def duck_overlay(speech: AudioSegment, music: AudioSegment, duck_db: float) -> AudioSegment:

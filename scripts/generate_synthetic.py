@@ -15,6 +15,7 @@ from utils import (
     fade_transition,
     overlay_noise,
     load_random_music_clip,
+    load_random_clip_concat,
 )
 
 # Загрузка путей из config.yaml
@@ -147,7 +148,7 @@ def make_example(scenario, noise_prob,
             dur_ms = int(round(dur_s * 1000))
 
         if tp == "speech":
-            clip = load_random_clip(PREP_SPEECH_DIR, dur_s) + gain_db
+            clip = load_random_clip_concat(PREP_SPEECH_DIR, dur_s) + gain_db
             segs = [("speech", t0, t0 + len(clip)/1000.0)]
 
         elif tp == "music":
@@ -160,7 +161,7 @@ def make_example(scenario, noise_prob,
 
         elif tp == "background_music":
             duck_db = parse_val(step.get("duck_db"), random.uniform(7, 18))
-            sp = load_random_clip(PREP_SPEECH_DIR, dur_s) + gain_db
+            sp =load_random_clip_concat(PREP_SPEECH_DIR, dur_s) + gain_db
             mu = load_random_music_clip(PREP_MUSIC_DIR,  dur_s)
             clip = duck_overlay(sp, mu, duck_db)
             L = len(clip)/1000.0
@@ -178,7 +179,7 @@ def make_example(scenario, noise_prob,
             sp_ms = total_ms // 2
             mu_ms = total_ms - sp_ms
 
-            sp = load_random_clip(PREP_SPEECH_DIR, sp_ms / 1000.0) + gain_db
+            sp = load_random_clip_concat(PREP_SPEECH_DIR, sp_ms / 1000.0) + gain_db
             mu = load_random_music_clip(PREP_MUSIC_DIR,  mu_ms / 1000.0)
 
             clip = fade_transition(sp, mu, xfade_ms)  # длина = len(sp)+len(mu) == total_ms
