@@ -1,6 +1,5 @@
 import os
 import random
-import argparse
 import yaml
 from pydub import AudioSegment
 from tqdm import tqdm

@@ -47,6 +47,7 @@ def main():
     mapping = [
         (cfg["paths"]["raw_music"],    cfg["paths"]["prepared_music"]),
         (cfg["paths"]["raw_noise"],    cfg["paths"]["prepared_noise"]),
+        (cfg["paths"]["raw_speech"],    cfg["paths"]["prepared_speech"]),
     ]
     exts = (".mp3", ".flac", ".wav", ".ogg", ".m4a", ".opus")
 
