@@ -6,7 +6,7 @@
 ---
 
 # 1. Структура проекта
-
+```
 generate_dataset/
 ├─ dataset/ # куда падают итоговые .wav + .yaml
 ├─ scenarios/ # сценарии генерации (*.yaml)
@@ -17,15 +17,20 @@ generate_dataset/
 │ ├─ preprocess.py
 │ └─ utils.py
 └─ config.yaml # конфиг путей
-
+```
 # 2. Что нужно для запуска
 
 ## Обязательные компоненты
 - Python **3.9+**
 - Установленный **FFmpeg** и доступный в `PATH`  
   Проверить:
+```bash
   ffmpeg -version
-  - Установленные Python-библиотеки:  pip install -r requirements.txt
+```
+  - Установленные Python-библиотеки: 
+```bash
+   pip install -r requirements.txt
+```
   
 ## Необходимые папки и файлы
 - `config.yaml` — конфигурация путей
@@ -96,16 +101,16 @@ example_00000.wav    (аудио)
 example_00000.yaml   (разметка)
 
 # 5. Препроцессинг (запуск)
-
+```bash
 cd scripts
 python preprocess.py
-
+```
 # 6. Генерация датасета
 
 Пример:
-
+```bash
 python -m scripts.generate_synthetic --n 200 --noise-prob 0.4 --seconds 30
-
+```
 Где:
 
 --n — количество треков
@@ -136,7 +141,7 @@ segments:
     start: 10.40
     end: 12.00
 
-# 8. Быстрый чек-лист
+# 8. Итог
 
  Python 3.9+
 
