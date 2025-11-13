@@ -1,0 +1,12 @@
+paths:
+  # Вход → Выход для препроцессинга
+  raw_music:      data/raw/music
+  prepared_music: data/prepared/music
+
+  raw_noise:      data/raw/noise
+  prepared_noise: data/prepared/noise
+  # Для речи пока ожидаются уже готовые моно 16k PCM wav
+  prepared_speech: data/prepared/speech
+  # Папка со сценариями (yaml) и папка для финального датасета
+  scenarios: scenarios
+  output:   dataset

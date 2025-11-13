@@ -1,0 +1,7 @@
+scenario: normal_convo
+sequence:
+  - type: speech
+    dur_mult: 2
+  - type: speech
+    gain_db: [-1, 2]
+    dur_mult: 2

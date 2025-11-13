@@ -1,0 +1,5 @@
+scenario: music_only
+sequence:
+  - type: music
+    gain_db: [-3, 0]
+    dur_mult: 1

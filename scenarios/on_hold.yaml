@@ -1,0 +1,6 @@
+scenario: on_hold
+sequence:
+  - type: speech
+    dur_mult: 2
+  - type: fade_to_music
+    dur_mult: 1

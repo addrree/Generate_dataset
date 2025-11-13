@@ -1,0 +1,9 @@
+scenario: music_burst
+sequence:
+  - type: speech
+    dur_mult: 2
+  - type: music
+    gain_db: -5
+    dur_mult: 1
+  - type: speech
+    dur_mult: 2
