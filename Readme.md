@@ -11,7 +11,6 @@ generate_dataset/
 ├─ dataset/ # куда падают итоговые .wav + .yaml
 ├─ scenarios/ # сценарии генерации (*.yaml)
 ├─ scripts/
-│ ├─ init.py
 │ ├─ config.py
 │ ├─ generate_synthetic.py
 │ ├─ preprocess.py
