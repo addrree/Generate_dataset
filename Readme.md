@@ -43,7 +43,7 @@ generate_dataset/
 ---
 
 # 3. Конфигурация: `config.yaml`
-
+```
 paths:
 raw_music:      data/raw/music
 prepared_music: data/prepared/music
@@ -56,12 +56,15 @@ prepared_speech: data/prepared/speech
 
 scenarios: scenarios
 output:   dataset
-
+```
 
 # 4. Как работает генерация
 
 # 4.1 Препроцессинг аудио
-Выполняется скриптом scripts/preprocess.py:
+Выполняется скриптом 
+```bash
+scripts/preprocess.py:
+```
 читает файлы из raw_music и raw_noise и raw_speech
 приводит к формату:mono 16 kHz PCM WAV
 сохраняет в prepared_music и prepared_noise и prepared_speech
